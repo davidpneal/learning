@@ -1,4 +1,4 @@
-#2/8/2019
+#2/10/2019
 #This config requires the keypair and security groups to already exist in AWS
 
 
@@ -29,12 +29,13 @@ resource "aws_instance" "webserver01" {
     inline = [
 	  "sudo yum update -y",
 	  "sudo yum install httpd -y",
-	  "sudo echo 'Hello World' > /var/www/html/index.html",
+	  "echo '<html><h1>Hello World</h1></html>' | sudo tee /var/www/html/index.html",
 	  "sudo service httpd start",
 	  "sudo chkconfig httpd on"
     ]
   }
 }
+
 
 
 #Output
