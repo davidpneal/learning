@@ -1,10 +1,10 @@
-#3/1/2019
-#This config will stand up a simple webserver that copies its resources from an associated S3 bucket
-#This version uses an IAM role to control access to the S3 bucket
+#3/2/2019
+#This config will stand up a simple webserver that uses S3 to store resources ~ uses Roles for permissions
+#It will also dynamically generate the index.html page and store it in S3
 #Requires the keypair to already exist in AWS
 
 
-#Variables definined in terraform.tfvars
+#Variables defined in terraform.tfvars
 variable "private_key_path" {}
 variable "keypair_name" {}
 variable "public_ip" {}
@@ -77,19 +77,17 @@ resource "aws_instance" "WebServer01" {
   connection {
     user        = "ec2-user"
     private_key = "${file(var.private_key_path)}"
-}
+  }
 
 
   #Recall these commands run under the context of ec2-user
   provisioner "remote-exec" {
-    inline = [
-	  "sudo yum update -y",
-	  "sudo yum install httpd -y",
-    "aws s3 cp s3://${aws_s3_bucket.WebsiteResources.id}/website/index.html .",
-    "sudo mv /home/ec2-user/index.html /var/www/html/",
-	  "sudo service httpd start",
-	  "sudo chkconfig httpd on"
-    ]
+    script = "webserver-init.sh"
+  }
+
+  #This command needs a separate provisioner since the shell script cant resolve the tf variables
+  provisioner "remote-exec" {
+    inline = ["aws s3 cp /var/www/html/index.html s3://${aws_s3_bucket.WebsiteResources.id}/index.html"]
   }
 
   tags {
@@ -125,8 +123,7 @@ resource "aws_iam_role" "WebsiteS3Role" {
     EOF
 }
 
-
-#Security Policy - grants access to the S3 bucket
+#IAM Security Policy - grants access to the S3 bucket
 resource "aws_iam_policy" "S3-Access-Policy" {
     name = "S3-Access-Policy"
 
@@ -139,6 +136,7 @@ resource "aws_iam_policy" "S3-Access-Policy" {
               "Effect": "Allow",
               "Action": [
                   "s3:Get*",
+                  "s3:Put*",
                   "s3:List*"
               ],
               "Resource": [
@@ -149,7 +147,7 @@ resource "aws_iam_policy" "S3-Access-Policy" {
       ]
     }
     EOF
-  } #End S3 access policy
+} #End S3 access policy
 
 #Attach the S3 permissions policy to the role
 resource "aws_iam_policy_attachment" "EC2-S3-Role-Attach" {
@@ -158,12 +156,12 @@ resource "aws_iam_policy_attachment" "EC2-S3-Role-Attach" {
   policy_arn = "${aws_iam_policy.S3-Access-Policy.arn}"
 }
 
-
 #Create the IAM Role Instance Profile - this is what is actually attached to the EC2 instance
 resource "aws_iam_instance_profile" "EC2-S3-RoleInstance" {
   name  = "EC2-S3-RoleInstance"
-  roles = ["${aws_iam_role.WebsiteS3Role.name}"]
+  role = "${aws_iam_role.WebsiteS3Role.name}"
 }
+
 
 
 #S3 Bucket
@@ -180,17 +178,6 @@ resource "aws_s3_bucket" "WebsiteResources" {
   }
 
 }
-
-
-#Upload objects into the bucket
-resource "aws_s3_bucket_object" "Webpage-Index" {
-  bucket = "${aws_s3_bucket.WebsiteResources.bucket}"
-  key    = "/website/index.html"
-  source = "./index.html"
-
-}
-
-
 
 #Output
 output "aws_instance_public_dns" {
