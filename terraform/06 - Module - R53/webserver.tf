@@ -1,4 +1,4 @@
-#6/20/2019
+#6/21/2019
 #Tested to work with Terraform .11.11 - version .12.2 does not work as written
 
 #A simple website running on a load balanced platform
@@ -10,6 +10,8 @@
 variable "private_key_path" {}
 variable "keypair_name" {}
 variable "public_ip" {}
+
+
 
 variable "environment_tag" {
   default = "lab06"
@@ -35,13 +37,12 @@ variable "dns_subdomain" {
   default = "lab"
 }
 
+
 #Get the Route53 zone as this resource already exists in AWS
 data "aws_route53_zone" "primary" {
   name = "davidpneal.com"
 }
 
-#Get the availability zones, this creates an array with the available AZs
-data "aws_availability_zones" "az" {}
 
 #Set provider
 provider "aws" {
@@ -49,68 +50,12 @@ provider "aws" {
 }
 
 
+module "networking" {
+  source = "\\networking"
 
-# VPC ##################################################################################################
-
-resource "aws_vpc" "vpc" {
-  cidr_block           = "${var.network_address_space}"
-  enable_dns_hostnames = true
-
-  tags {
-    Name        = "${var.environment_tag}-vpc"
-    Environment = "${var.environment_tag}"
-  }
-}
-
-#Bind the igw to the vpc
-resource "aws_internet_gateway" "igw" {
-  vpc_id = "${aws_vpc.vpc.id}"
-
-  tags {
-    Name        = "${var.environment_tag}-igw"
-    Environment = "${var.environment_tag}"
-  }
-
-}
-
-#Create the subnets
-resource "aws_subnet" "subnet" {
-  count                   = "${var.subnet_count}"
-  #Parent network space, cidr offset - add this to 16 to get /24, index (first subnet)
-  cidr_block              = "${cidrsubnet(var.network_address_space,8,count.index)}"
-  vpc_id                  = "${aws_vpc.vpc.id}"
-  map_public_ip_on_launch = "true"
-  availability_zone       = "${data.aws_availability_zones.az.names[count.index]}"
-
-  tags {
-    Name        = "${var.environment_tag}-${data.aws_availability_zones.az.names[count.index]}-subnet"
-    Environment = "${var.environment_tag}"
-  }
-}
-
-#Create a route table
-resource "aws_route_table" "route-table" {
-  vpc_id = "${aws_vpc.vpc.id}"
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = "${aws_internet_gateway.igw.id}"
-  }
-
-  tags {
-    Name        = "${var.environment_tag}-route-table"
-    Environment = "${var.environment_tag}"
-  }
-
-}
-
-#Associate the route table to the subnet
-resource "aws_route_table_association" "route-table-subnet" {
-  count          = "${var.subnet_count}"
-  #The wildcard in this command will return all of the subnets that are part of the aws_subnet.subnet variable
-  #The element command will iterate this list using count as an index
-  subnet_id      = "${element(aws_subnet.subnet.*.id,count.index)}"
-  route_table_id = "${aws_route_table.route-table.id}"
+  environment_tag       = "${var.environment_tag}"
+  network_address_space = "${var.network_address_space}"
+  subnet_count          = "${var.subnet_count}"
 }
 
 
@@ -120,7 +65,7 @@ resource "aws_route_table_association" "route-table-subnet" {
 #Security Group to control access to the web server
 resource "aws_security_group" "WebServerSG" {
   name   = "WebServerSG"
-  vpc_id = "${aws_vpc.vpc.id}"
+  vpc_id = "${module.networking.vpc_id}"
 
   # SSH access from a whitelisted address
   ingress {
@@ -150,14 +95,13 @@ resource "aws_security_group" "WebServerSG" {
     Name        = "${var.environment_tag}-WebServerSG"
     Environment = "${var.environment_tag}"
   }
-
 }
 
 
 #Security Group to control access to the elastic load balancer
 resource "aws_security_group" "ELB-SG" {
   name        = "ELB-SG"
-  vpc_id      = "${aws_vpc.vpc.id}"
+  vpc_id      = "${module.networking.vpc_id}"
 
   # HTTP access from anywhere
   ingress {
@@ -179,7 +123,6 @@ resource "aws_security_group" "ELB-SG" {
     Name        = "${var.environment_tag}-ELB-SG"
     Environment = "${var.environment_tag}"
   }
-
 } #End Security Group
 
 
@@ -188,7 +131,8 @@ resource "aws_security_group" "ELB-SG" {
 #aws_elb will create a Classic ELB
 resource "aws_elb" "LoadBalancer" {
   name            = "LoadBalancer"
-  subnets         = ["${aws_subnet.subnet.*.id}"]
+  #Subnet_ids is a data structure that contains multiple id's
+  subnets         = ["${module.networking.subnet_ids}"]
   security_groups = ["${aws_security_group.ELB-SG.id}"]
   instances       = ["${aws_instance.WebServer.*.id}"]
 
@@ -213,7 +157,7 @@ resource "aws_instance" "WebServer" {
   ami           = "ami-035be7bafff33b6b6" #This AMI is ok for the US-E1 Region
   instance_type = "t2.micro"
   key_name      = "${var.keypair_name}"
-  subnet_id     = "${element(aws_subnet.subnet.*.id,count.index % var.subnet_count)}" #Use % to divide the instances among the subnets
+  subnet_id     = "${element(module.networking.subnet_ids,count.index % var.subnet_count)}" #Use % to divide the instances among the subnets
   vpc_security_group_ids = ["${aws_security_group.WebServerSG.id}"]
   
   connection {
@@ -230,7 +174,6 @@ resource "aws_instance" "WebServer" {
   provisioner "remote-exec" {
     script = "webserver-init.sh"
   }
-
 } #End Instance
 
 
