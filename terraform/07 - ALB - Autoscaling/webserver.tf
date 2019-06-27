@@ -1,4 +1,4 @@
-#6/25/2019
+#6/27/2019
 #Tested to work with Terraform .11.11 - version .12.2 does not work as written
 
 #A simple website running on a load balanced platform with autoscaling
@@ -21,8 +21,13 @@ variable "network_address_space" {
   default = "10.1.0.0/16"
 }
 
-#The total number of instances to provision
-variable "instance_count" {
+#The maximum number of instances that the ASG will provision
+variable "max_instances" {
+  default = 4
+}
+
+#The minimum number of instances that the ASG will provision
+variable "min_instances" {
   default = 2
 }
 
@@ -60,45 +65,9 @@ module "networking" {
 
 
 
-#Security Groups #######################################################################################
+#Application Load Balancer ##################################################################################
 
-#Security Group to control access to the web server
-resource "aws_security_group" "WebServerSG" {
-  name   = "WebServerSG"
-  vpc_id = "${module.networking.vpc_id}"
-
-  # SSH access from a whitelisted address
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["${var.public_ip}"]
-  }
-
-  # HTTP access from anywhere
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # Outbound access
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags {
-    Name        = "${var.environment_tag}-WebServerSG"
-    Environment = "${var.environment_tag}"
-  }
-}
-
-
-#Security Group to control access to the elastic load balancer
+#Security Group to control access to the load balancer
 resource "aws_security_group" "ALB-SG" {
   name        = "ALB-SG"
   vpc_id      = "${module.networking.vpc_id}"
@@ -123,11 +92,8 @@ resource "aws_security_group" "ALB-SG" {
     Name        = "${var.environment_tag}-ALB-SG"
     Environment = "${var.environment_tag}"
   }
-} #End Security Group
+}
 
-
-
-#Application Load Balancer #################################################################################
 resource "aws_lb" "LoadBalancer" {
   name               = "Website-ALB"
   internal           = false
@@ -183,73 +149,72 @@ resource "aws_autoscaling_attachment" "TG-ASG-Attach" {
 }
 
 
-#EC2 Instance ##########################################################################################
-#resource "aws_instance" "WebServer" { 
-#  count         = "${var.instance_count}"
-#  ami           = "ami-035be7bafff33b6b6" #This AMI is ok for the US-E1 Region
-#  instance_type = "t2.micro"
-#  key_name      = "${var.keypair_name}"
-#  subnet_id     = "${element(module.networking.subnet_ids,count.index % var.subnet_count)}" #Use % to divide the instances among the subnets
-#  vpc_security_group_ids = ["${aws_security_group.WebServerSG.id}"]
-  
-#  connection {
-#    user        = "ec2-user"
-#    private_key = "${file(var.private_key_path)}"
-#  }
 
-#  tags {
-#    Name        = "${var.environment_tag}-WebServer-${count.index}"
-#    Environment = "${var.environment_tag}"
-#  }
+#EC2 - AutoScaling Group ####################################################################################
 
-  #Recall these commands run under the context of ec2-user
-#  provisioner "remote-exec" {
-#    script = "webserver-init.sh"
-#  }
-#} #End Instance
+#Security Group to control access to the web server
+resource "aws_security_group" "WebServer-SG" {
+  name   = "WebServer-SG"
+  vpc_id = "${module.networking.vpc_id}"
 
+  # SSH access from a whitelisted address
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["${var.public_ip}"]
+  }
 
+  # HTTP access from anywhere
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Outbound access
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags {
+    Name        = "${var.environment_tag}-WebServer-SG"
+    Environment = "${var.environment_tag}"
+  }
+}
 
 # Define the Launch Configuration
 resource "aws_launch_configuration" "Launch-Config" {
-  name                   = "Website-Launch-Config"
+  name_prefix            = "Website-LC-" #TF documentation recc not using a name since the LC is recreated if changed
   image_id               = "ami-035be7bafff33b6b6" #This AMI is ok for the US-E1 Region
   instance_type          = "t2.micro"
-  security_groups        = ["${aws_security_group.WebServerSG.id}"]
+  security_groups        = ["${aws_security_group.WebServer-SG.id}"]
   key_name               = "${var.keypair_name}"
 
-  ####CHANGE THIS TO THE SCRIPT ~prob needs to be changes to work with the ASG 
-  user_data = <<-EOF
-              #!/bin/bash
-              sudo yum update -y
-              sudo yum install httpd -y
-              echo "<html><body><h1>Hello World</h1>Welcome to " >> index.html
-              curl http://169.254.169.254/latest/meta-data/public-ipv4 >> index.html
-              echo "</body></html>" >> index.html
-              sudo mv /home/ec2-user/index.html /var/www/html/
-              sudo service httpd start
-              sudo chkconfig httpd on
-              EOF
-  lifecycle {
-    create_before_destroy = true ###LOOK THIS UP
-  }
+  #User data takes the bootstrap script - documentation indicates this can be a cloud-init script or a standard shell script 
+  user_data = "${file("webserver-init.sh")}"
 
+  lifecycle {
+    create_before_destroy = true #If changed, create the new LC before destroying the old one
+  }
 }
 
 # Create the AutoScaling Group
 resource "aws_autoscaling_group" "ASG" {
   name                  = "WebServer-ASG"
   launch_configuration  = "${aws_launch_configuration.Launch-Config.id}"
-  #availability_zones    = ["${data.aws_availability_zones.all.names}"] ####THIS PROB NEEDS TO BE CHAGNED TOO - OR DELETED?
   vpc_zone_identifier   = ["${module.networking.subnet_ids}"] #list of subnet IDs to launch resources into
-  min_size              = 2
-  max_size              = 5 ###VAR
-  #target_group_arns     = ["${aws_lb.LoadBalancer.arn}"] test-might not need this, since have a separate TG association
-  health_check_type     = "ELB" ###CHANGE?
+  min_size              = "${var.min_instances}"
+  max_size              = "${var.max_instances}"
+  health_check_type     = "ELB"
   
-  tag { ###CHANGE THIS - this is what the EC2 instances get named!
+  tag {
     key = "Name"
-    value = "terraform-asg-ec2instance"
+    value = "${var.environment_tag}-ASG-WebServer"
     propagate_at_launch = true #Required so the ASG can propagate the tag to the EC2 instances it creates
   }
 }
