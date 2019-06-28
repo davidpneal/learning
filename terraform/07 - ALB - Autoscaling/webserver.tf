@@ -1,4 +1,4 @@
-#6/27/2019
+#6/28/2019
 #Tested to work with Terraform .11.11 - version .12.2 does not work as written
 
 #A simple website running on a load balanced platform with autoscaling
@@ -72,7 +72,7 @@ resource "aws_security_group" "ALB-SG" {
   name        = "ALB-SG"
   vpc_id      = "${module.networking.vpc_id}"
 
-  # HTTP access from anywhere
+  #HTTP access from anywhere
   ingress {
     from_port   = 80
     to_port     = 80
@@ -80,7 +80,7 @@ resource "aws_security_group" "ALB-SG" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Outbound access
+  #Outbound access
   egress {
     from_port   = 0
     to_port     = 0
@@ -157,7 +157,7 @@ resource "aws_security_group" "WebServer-SG" {
   name   = "WebServer-SG"
   vpc_id = "${module.networking.vpc_id}"
 
-  # SSH access from a whitelisted address
+  #SSH access from a whitelisted address
   ingress {
     from_port   = 22
     to_port     = 22
@@ -165,7 +165,7 @@ resource "aws_security_group" "WebServer-SG" {
     cidr_blocks = ["${var.public_ip}"]
   }
 
-  # HTTP access from anywhere
+  #HTTP access from anywhere
   ingress {
     from_port   = 80
     to_port     = 80
@@ -173,7 +173,7 @@ resource "aws_security_group" "WebServer-SG" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Outbound access
+  #Outbound access
   egress {
     from_port   = 0
     to_port     = 0
@@ -187,7 +187,7 @@ resource "aws_security_group" "WebServer-SG" {
   }
 }
 
-# Define the Launch Configuration
+#Define the Launch Configuration
 resource "aws_launch_configuration" "Launch-Config" {
   name_prefix            = "Website-LC-" #TF documentation recc not using a name since the LC is recreated if changed
   image_id               = "ami-035be7bafff33b6b6" #This AMI is ok for the US-E1 Region
@@ -203,7 +203,7 @@ resource "aws_launch_configuration" "Launch-Config" {
   }
 }
 
-# Create the AutoScaling Group
+#Create the AutoScaling Group
 resource "aws_autoscaling_group" "ASG" {
   name                  = "WebServer-ASG"
   launch_configuration  = "${aws_launch_configuration.Launch-Config.id}"
@@ -211,12 +211,69 @@ resource "aws_autoscaling_group" "ASG" {
   min_size              = "${var.min_instances}"
   max_size              = "${var.max_instances}"
   health_check_type     = "ELB"
+  enabled_metrics       = [""] #Enables Group Metrics Collection for all metrics
   
   tag {
     key = "Name"
     value = "${var.environment_tag}-ASG-WebServer"
     propagate_at_launch = true #Required so the ASG can propagate the tag to the EC2 instances it creates
   }
+}
+
+#Scale Up Policy and Alarm
+resource "aws_autoscaling_policy" "Scale-Up" {
+  name                   = "Scale-Up-Policy"
+  scaling_adjustment     = 1
+  adjustment_type        = "ChangeInCapacity"
+  cooldown               = 300
+  autoscaling_group_name = "${aws_autoscaling_group.ASG.name}"
+}
+
+resource "aws_cloudwatch_metric_alarm" "Scale-Up-Alarm" {
+  alarm_name                = "Scale-Up-Alarm"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = "2"
+  metric_name               = "CPUUtilization"
+  namespace                 = "AWS/EC2"
+  period                    = "120"
+  statistic                 = "Average"
+  threshold                 = "80"
+  insufficient_data_actions = []
+
+  dimensions {
+    AutoScalingGroupName = "${aws_autoscaling_group.ASG.name}"
+  }
+
+  alarm_description = "EC2 High CPU Utilization"
+  alarm_actions     = ["${aws_autoscaling_policy.Scale-Up.arn}"]
+}
+
+#Scale Down Policy and Alarm
+resource "aws_autoscaling_policy" "Scale-Down" {
+  name                   = "Scale-Down-Policy"
+  scaling_adjustment     = -1
+  adjustment_type        = "ChangeInCapacity"
+  cooldown               = 600
+  autoscaling_group_name = "${aws_autoscaling_group.ASG.name}"
+}
+
+resource "aws_cloudwatch_metric_alarm" "Scale-Down-Alarm" {
+  alarm_name                = "Scale-Down-Alarm"
+  comparison_operator       = "LessThanThreshold"
+  evaluation_periods        = "5"
+  metric_name               = "CPUUtilization"
+  namespace                 = "AWS/EC2"
+  period                    = "120"
+  statistic                 = "Average"
+  threshold                 = "30"
+  insufficient_data_actions = []
+
+  dimensions {
+    AutoScalingGroupName = "${aws_autoscaling_group.ASG.name}"
+  }
+
+  alarm_description = "EC2 Low CPU Utilization"
+  alarm_actions     = ["${aws_autoscaling_policy.Scale-Down.arn}"]
 }
 
 
