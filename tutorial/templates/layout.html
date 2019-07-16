@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    {% if title %}
+        <title>{{ title }}</title>
+    {% else %}
+        <title>Flask Blog</title>
+    {% endif %}
+</head>
+<body>
+    <!-- This section will be overridden by the child template -->
+    {% block content %}{% endblock %}
+</body>
+</html>
