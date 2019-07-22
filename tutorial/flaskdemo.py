@@ -1,5 +1,7 @@
-#7/20/2019
+#7/22/2019
 from flask import Flask, render_template, url_for, flash, redirect
+from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
 
 #Import the forms we created in the forms.py file
 from forms import RegistrationForm, LoginForm
@@ -9,6 +11,40 @@ app = Flask(__name__)
 
 #Need a secret key to validate our forms (need a better way to handle this secret later on)
 app.config['SECRET_KEY'] = '1d6ad6c2c107847c9ee3900cfdb9b88d'
+#We are using SQLite which is simply a file on the localhost, the /// represents a relative path from the current file
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
+
+#Create the database instance
+db = SQLAlchemy(app)
+
+#Define the class models for the database - these classes represent tables in the database
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(20), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    #The image files will be hashed and the hash will be stored here-
+    image_file = db.Column(db.String(20), nullable=False, default ='default.jpg')
+    #The password hashing algorithm will generate a 60 character hash
+    password = db.Column(db.String(60), nullable=False)
+    #User (author) to Post is a one to many relationship, create that relationship here
+    posts = db.relationship('Post', backref='author', lazy=True)
+
+    #Define a method that will format the output when a row is printed out
+    def __repr__(self):
+        return f"User('{self.username}','{self.email}', '{self.image_file}'"
+
+class Post(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(100), nullable=False)
+    #For datetime.utcnow we are omitting () -> this will pass the function as the argument instead of the current time
+    date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    content = db.Column(db.Text, nullable=False)
+    #Add a foreign key to store the User primary key
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    def __repr__(self):
+        return f"Post('{self.title}','{self.date}'"
+
 
 #Add some dummy data to work with for the demo
 #This list represents the data a db call would return when queried

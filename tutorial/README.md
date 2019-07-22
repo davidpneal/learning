@@ -10,6 +10,7 @@ Flask is a python framework, so it will obviously need to be installed.  I used 
 These packages can be installed via pip:
 * Flask
 * Flask-WTF, installing this will also automatically install the WTForms package
+* Flask-sqlalchemy, this will also install SQLAlchemy automatically
 
 
 ### Starting the Flask web server
