@@ -5,7 +5,7 @@ Based on the excellent tutorial by Corey Schafer: [Link](https://www.youtube.com
 
 ### Required packages
 
-Flask is a python framework, so it will obviously need to be installed.  I used version 3.7.1.
+Flask is a Python framework, so it will obviously need to be installed.  I used version 3.7.1.
 
 These packages can be installed via pip:
 * Flask
@@ -15,6 +15,6 @@ These packages can be installed via pip:
 
 ### Starting the Flask web server
 
-Flask helpfully includes a dev webserver that can be used to run the site on the local machine.  It can be launched by navigating to the folder containing the project and running `python flaskdemo.py`
+Flask helpfully includes a dev webserver that can be used to run the site on the local machine.  It can be launched by navigating to the folder containing the package and running `python run.py`
 
 The site will be available at `http://localhost:5000`
