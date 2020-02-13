@@ -1,0 +1,56 @@
+<!-- 7/20/2019 -->
+{% extends "layout.html" %}
+
+{% block content %}
+    <div>
+        <form method = "POST" action = "">
+            <!-- Implements the CSRF protection -->
+            {{ form.hidden_tag() }}
+            <fieldset>
+                <legend>Login</legend>
+                <div>
+                    {{ form.email.label() }}
+                    {{ form.email() }}
+
+                    {% if form.email.errors %}
+                        <div>
+                            {% for error in form.email.errors %}
+                                <small><span style="color: red;">{{ error }}</span></small>
+                            {% endfor%}
+                        </div>
+                    {% endif %}
+                </div>
+                <div>
+                    {{ form.password.label() }}
+                    {{ form.password() }}
+
+                    {% if form.password.errors %}
+                        <div>
+                            {% for error in form.password.errors %}
+                                <small><span style="color: red;">{{ error }}</span></small>
+                            {% endfor%}
+                        </div>
+                    {% endif %}
+                </div>
+                <div>
+                    {{ form.remember() }}
+                    {{ form.remember.label() }}
+                </div>
+            </fieldset>
+            <br>
+            <div>
+                {{ form.submit() }}
+            </div>
+            <small>
+                <!-- # is just a placeholder since we dont have a link to provide right now -->
+                <a href="#">Forgot password?</a>
+            </small>
+        </form>
+    </div>
+    <br>
+    <div>
+        <small>
+            Need an account? <a href="{{ url_for('register') }}">Sign Up Now</a>
+        </small>
+    </div>
+{% endblock content %}

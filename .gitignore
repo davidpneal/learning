@@ -4,3 +4,5 @@ terraform/.terraform
 *.tfstate
 *.tfstate.backup
 *.tfstate.lock.info
+
+flask/tutorial/flaskdemo/__pycache__

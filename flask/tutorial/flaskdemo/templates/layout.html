@@ -1,0 +1,37 @@
+<!-- 7/20/2019 -->
+<!DOCTYPE html>
+<html>
+<head>
+    {% if title %}
+        <title>{{ title }}</title>
+    {% else %}
+        <title>Flask Blog</title>
+    {% endif %}
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="/">Flask Blog</a>
+            <a href="{{ url_for('index') }}">Home</a>
+            <a href="{{ url_for('about') }}">About</a>
+            <a href="{{ url_for('login') }}">Login</a>
+            <a href="{{ url_for('register') }}">Register</a>
+        </nav>
+        <hr>
+    </header>
+    <!-- Display any flash messages at the top of the page -->
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul>
+            {% for message in messages %}
+                <div>
+                    <li>{{ message }}</li>
+                </div>
+            {% endfor%}
+            </ul>
+        {% endif %}
+    {% endwith %}
+    <!-- This section will be overridden by the child template -->
+    {% block content %}{% endblock %}
+</body>
+</html>
