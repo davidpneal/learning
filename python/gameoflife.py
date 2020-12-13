@@ -5,67 +5,71 @@
 #https://mathworld.wolfram.com/GameofLife.html
 
 
-#Use Numpy ?
+#The package numpy has some tools that can help with the multidimensional arrays
+#Note that numpy uses matrix indexing (i,j / row,col) vs cartesian indexing (x,y) --> if the matrix is printed out, it will be "rotated"
+import numpy as np
 
 
-class gameoflife(object):
+
+class gameoflife(object): #Check this syntax
  
+    #Variables declared here are shared by all instances
+    gridsize = 80,60
+
     def __init__(self, gridsize):
-        #Create the matrix and populate it with cells
-        self.grid[] = some_matrix_class(gridsize)
+        #Variables declared here are unique to each instance
+        
+        #Create the matrix to store the state initialize to all false
+        self.grid = np.full(shape=(self.gridsize[1],self.gridsize[0]), False, dtype=bool) #Test -- not clear the shape syntax works with full
+        #If this fails, can also try: self.grid = np.zeros(shape=(300,300),dtype=bool)
+        
+        #can we set this to have a default value that is overridden if a param is passed?
+        self.gridsize = gridsize #default to 100,100 if no variable passed
 
-        for each row in grid:
-            for each col in grid:
-                self.grid[row,col] = True / False #DEFAULT VALUES?
+        #Modify this to set some live cells to start -- random, or have a way to init a specific pattern into the matrix (set specific cells to live)
+        for row in range(gridsize[1]):
+            for col in range(gridsize[0]):
+                self.grid[row][col] #= set a value
 
-                #Later on - have a way to init a specific pattern into the matrix (set specific cells to live)
 
+    #Update the state to the next generation
+    def step(self):
+        #Create grid and set to 0: use ints (defaults to float)
+        self.num_neighbors = np.zeros(shape=(gridsize[0],gridsize[1]),dtype=int)
 
-    def step():
         #Calculate the number of the neighbors for each cell in the matrix
-        self.num_neighbors[] = some_matrix_class(len(grid))
-
-        for each row in grid:
-            for each col in grid:
-                self.num_neighbors[row,col] = self.grid[row,col].calc_neighbors()
+        for row in range(gridsize[1]):
+            for col in range(gridsize[0]):
+                self.num_neighbors[row,col] = self.grid[row,col].calc_neighbors(row, col)
             
-        #Use the num_neighbors matrix to calc next state for each cell, can directly update the state
-        for each row in grid:
-            for each col in grid:
-                #Logic to calculate the next generation state
-                #Check this syntax
+        #Use the num_neighbors matrix to calculate and set the next generation state for each cell
+        for row in range(gridsize[1]):
+            for col in range(gridsize[0]):
                 if num_neighbors[row,col] <= 1:
-                    self.grid[row,col] = False  #Dies from loneliness
-                elif num_neighbors[row,col] = 2:
+                    self.grid[row,col] = False  #Dies from loneliness (0-1)
+                elif num_neighbors[row,col] == 2:
                     pass                        #Two neighbors = no change
-                elif num_neighbors[row,col] = 3:
+                elif num_neighbors[row,col] == 3:
                     self.grid[row,col] = True   #Will always return true since dead cells become live with 3 neighbors
                 elif num_neighbors[row,col] >= 4:
-                    seld.grid[row,col] = False  #Dies from overcrowding
-
+                    self.grid[row,col] = False  #Dies from overpopulation (4+)
 
         #Can have some code to detect no life - break the while loop and/or reset the board and start over
 
 
-    def state():
-        return self.grid
+    def state(self):
+        return self.grid #Does this return a pointer or a copy?  Update this to the parameter 
 
 
-    def calc_neighbors():
+    def calc_neighbors(self, row, col):
         self.neighbors = 0
 
         #Need some edge case handling - either looping code, or an invisible edge row
 
-        #posx and posy should work
-        for posx - 1 to posx + 1:
-            for posy -1 to posy + 1: 
-                if grid[x][y].state == True
-                    neighbors = neighbors + 1
-        
-        return self.neighbors
-
-
-
+        for posy in range(row-1,row+2):
+            for posx in range(col-1,col+2):
+                if self.grid[posy,posx] == True:
+                    self.neighbors = self.neighbors + 1
 
 
 
@@ -75,21 +79,14 @@ if __name__ == '__main__':
 
     gridsize = 100,100
 
-    life = gameoflife(gridsize)
+    life = gameoflife(gridsize) #If no gridsize is passed, default to 100x100 or something
     
     steps = 0
     iteration = 0
-    while steps = 0 or iteration != steps:
+    while steps == 0 or iteration != steps:
         life.step()
-        draw(life.state())
+        draw(life.state()) #Use mathplotlib for the draw function?
 
         iteration = iteration + 1
 
-
-
-
-
-
-#OTHER NOTES
-#Later - how about an 'infinite' grid -- no set size, it grows as needed (how fast will this be though)
 
