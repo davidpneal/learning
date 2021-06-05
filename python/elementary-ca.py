@@ -11,6 +11,9 @@
 #Some interesting rules: 30, 54, 90, 122, 126, 150, 182
 
 
+import argparse
+
+
 class ca:
 
     def __init__(self, rule, width = 63):
@@ -32,7 +35,6 @@ class ca:
         self._state[self._width//2] = True
 
 
-    #Can this be implemented as __iter__ or __next__ instead?
     def step(self):
         parent_state = self._state.copy()
 
@@ -53,18 +55,23 @@ class ca:
         return self._state[1:-1]
 
 
-    def draw(self):
+    def __str__(self):
         return ''.join(['\u2588' if x is True else ' ' for x in self._state[1:-1]])
 
 
 
 if __name__ == '__main__':
     
-    #Instantiate the class to use rule 30
-    cell = ca(30)
+    parser = argparse.ArgumentParser(description='Elementary Cellular Automaton Options')
+    parser.add_argument('-rule', help='Specify the rule to use when computing generations', default=90, type=int)
+    parser.add_argument('-width', help='Specify the width of the automaton', default=63, type=int)
+    parser.add_argument('-generations', help='Specify the number of generations to simulate', default=30, type=int)
+    args = parser.parse_args()
 
-    print(cell.draw())
-    for _ in range(30):
+    #Instantiate the class
+    cell = ca(args.rule, args.width)
+
+    print(cell)
+    for _ in range(args.generations):
         cell.step()
-        print(cell.draw())
-
+        print(cell)
