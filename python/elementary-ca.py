@@ -1,41 +1,52 @@
 #!/usr/bin/python3
 
-#Implements an elementary cellular automation
+#Implements an elementary cellular automaton class
 #https://mathworld.wolfram.com/ElementaryCellularAutomaton.html
 
 
+class ca:
 
-#https://reference.wolfram.com/language/ref/CellularAutomaton.html
-#Some great hints on how Wolfram's function takes\returns data
-#Maybe create a wrapper, something like: e_ca.draw(rule, input, steps)
+    def __init__(self, rule, width = 15):
 
+        #Should add code to validate rule is between 0 and 255
+        self._rule = format(rule, '08b') #this creates a string
 
-def step(rule, input):
-    #Need a way to store the various rules
+        #We always want an odd number 3 or greater, the first and last elements will be hidden
+        if width < 1:
+            self._width = 3
+        elif width % 2 == 0:
+            self._width = width + 1
+        else:
+            self._width = width + 2
 
-    #Select structure to implement each ruleset?
-    #Loop through the input array and generate the next generation
-
-    #Returns an array that will be 2 elements longer than the input array
-
-
-def draw(input):
-    #Draw the output 
-    #Need to start drawing from the center top of the window
-    #Need some logic to correctly center each subsequent line on the screen
+        self._state = [0] * self._width  #Need to decide if want to use False / True instead of 0/1
+        self._state[self._width//2] = 1
 
 
 
-
-rule = 30 #Later on, need a way to input this parameter
-steps = 0 #Infinite steps
-array = {1}
-
-while True:
-    draw{array} #Need this function to start drawing in the middle of the screen
-    new_array = step(rule, array)
-    array = new_array #Test -- does Py require this?  Might be able to directly set array to the output of e_ca()
+    #Can this be implemented as __iter__ or __next__ instead?
+    def step(self):
+        #logic to update to the next generation
+        pass
 
 
+    def state(self):
+        return self._state[1:-1]
 
+
+
+
+if __name__ == '__main__':
+    
+    #Instantiate the class to use rule 30
+    ca30 = ca(30)
+
+    print(ca30.state())
+    
+    #print(ca30._state)
+
+    
+    #for _ in range(10):
+    #    ca30.step()
+    #    print(ca30.state())
 
