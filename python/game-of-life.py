@@ -14,22 +14,28 @@
 
 class cell:
 
-    import random
+    def __init__(self, x, y, state = None):
 
-    def __init__(self, x, y, state = random.choice([True, False])):
+        import random
 
         self._x = x
         self._y = y
         self._revision = 0
-        self._state = bool(state)
         self._previous_state = None
+
+        if state is None:
+            self._state = random.choice([True, False])
+        else:
+            self._state = bool(state)
+
  
 
     def __bool__(self):
         return self._state
 
 
-    def state(self, revision):
+
+    def state(self, revision = None):
         #This method should allow for updating the cells in a parallel manor
         if revision is None:
             return self._state
@@ -42,23 +48,23 @@ class cell:
             exit()
 
 
+
     def update(self, grid, gridsize):
         
         #Calculate neighborhood value
         self._neighbors = 0
-        for xpos in range(self._x-1,self._x+1):
-            for ypos in range(self._y-1,self._y+1):
-                
-                col = (xpos + gridsize.x) % gridsize.x
+        
+        for xpos in range(self._x-1,self._x+2):         #must offset by '2' to get the desired result
+            for ypos in range(self._y-1,self._y+2):
+
+                col = (xpos + gridsize.x) % gridsize.x      #wrap the board, use modulus math to restrict us to the grid size
                 row = (ypos + gridsize.y) % gridsize.y
 
                 if grid[col][row].state(self._revision) is True:
-                    self._neighbors += 1
-                    ## This will cause a cell to call itself with state() -- make sure this works as expected
-
-        #Need to subtract out self._state
-        if self._state is True:
-            self._neighbors -= 1
+                    if (xpos == self._x) and (ypos == self._y):     #Don't add oneself the the neighbor count
+                        continue
+                    else:
+                        self._neighbors += 1
         
 
         #Update state
@@ -85,34 +91,37 @@ class gol:
     def __init__(self):
         from collections import namedtuple
         size = namedtuple('size','x, y')
-        self._gridsize = size(100,100)
+        self._gridsize = size(60,120)       #X is the horizontal lines (cols), Y is vertical lines (rows)
         
-        self._grid = [[cell(x,y) for x in range(self._gridsize.x)] for y in range(self._gridsize.y)] 
-        #self._revision = 0
+        self._grid = [[cell(x,y) for y in range(self._gridsize.y)] for x in range(self._gridsize.x)] 
+
 
 
     def update(self):
                 
-        for xpos in range(self._gridsize.x):
-            for ypos in range(self._gridsize.y):
-                self._grid[xpos][ypos].update(self._grid, self._gridsize) #can you pass 'self' in the function all like this? ######################
+        #for xpos in range(self._gridsize.x):
+        #    for ypos in range(self._gridsize.y):
+        #        self._grid[xpos][ypos].update(self._grid, self._gridsize)
 
-        #self._grid[[for x in range(self._gridsize.x)] for y in range(self._gridsize.y)].update(self._grid, self._revision) ##will this work? -or-
-        #[[self._grid[posx][posy].update(self._grid, self._revision) for posx in range(self._gridsize.x)] for posy in range(self._gridsize.y)]
-
-        #self._revision += 1 #not really needed
+        [[self._grid[posx][posy].update(self._grid, self._gridsize) for posy in range(self._gridsize.y)] for posx in range(self._gridsize.x)]
 
 
 
     def draw(self):
+
+        from os import system
+        from time import sleep
+
+        system('cls')
+
+        for x in range(self._gridsize.x):
+            print(''.join(['\u2588' if self._grid[x][y].state() is True else ' ' for y in range(self._gridsize.y)]))
+
+        sleep(.1)
+
+
         #use a library to draw a representation of the grid
-        #from matplotlib import pyplot, colors
-        #colormap = colors.ListedColormap(["white","black"])
 
-        print("draw update")
-        #print(str(self._grid))
-
-        #print(''.join(str([['\u2588' if self._grid[x][y] is True else ' ' for x in range(self._gridsize.x)] for y in range(self._gridsize.y)]))) #update to use grid
 
 
     def is_stable(self):
@@ -130,16 +139,18 @@ if __name__ == '__main__':
     #Instantiate the game
     game = gol()
 
+    count = 0
     while True:
         game.update()
         game.draw()
+        count += 1
 
-        if game.is_stable():
+        #if game.is_stable():
+        #    break
+        if count == 500:
             break
-        
+
         #might need a delay here
 
     #pause here to leave the last draw() state on the screen
-
-
 
