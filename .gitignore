@@ -6,3 +6,7 @@ terraform/.terraform
 *.tfstate.lock.info
 
 flask/tutorial/flaskdemo/__pycache__
+
+python/secrets.py
+python/tickers.json
+python/__pycache__
