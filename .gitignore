@@ -7,6 +7,7 @@ terraform/.terraform
 
 flask/tutorial/flaskdemo/__pycache__
 
-python/secrets.py
-python/tickers.json
-python/__pycache__
+**secrets.py
+**__pycache__
+
+.DS_Store
